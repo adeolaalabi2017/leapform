@@ -43,6 +43,13 @@ src/app/api/forms           forms CRUD + publish + responses/CSV
 src/app/f/[formId]          Public form + submit endpoint
 ```
 
+## Deployment
+
+Live: **https://leapform.vercel.app** (Vercel, region fra1 — same as the Neon DB).
+
+- GitHub: https://github.com/adeolaalabi2017/leapform — pushes to `main` auto-deploy to production; PRs get preview URLs.
+- `DATABASE_URL` is set in the Vercel project settings (Neon `production` branch).
+
 ## Environment
 
 - `DATABASE_URL` — Neon Postgres connection string.
