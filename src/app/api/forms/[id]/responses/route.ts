@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, sql } from "drizzle-orm";
 import { db } from "@/db/db";
 import { forms, responses } from "@/db/schema";
 import { normalizeSchema } from "@/lib/form-types";
@@ -22,9 +22,14 @@ export async function GET(req: Request, { params }: Ctx) {
 
   const { searchParams } = new URL(req.url);
   if (searchParams.get("format") === "csv") {
-    const headers = ["submitted_at", ...schema.fields.map((f) => f.title || f.id)];
+    const headers = [
+      "submitted_at",
+      "response_status",
+      ...schema.fields.map((f) => f.title || f.id),
+    ];
     const body = rows.map((r) => [
       new Date(r.createdAt).toISOString(),
+      r.completed ? "completed" : "partial",
       ...schema.fields.map((f) => {
         const v = (r.answers as Record<string, unknown>)?.[f.id];
         return v === undefined || v === null ? "" : String(v);

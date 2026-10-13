@@ -28,6 +28,18 @@ await sql`
     completed boolean NOT NULL DEFAULT true,
     user_agent text,
     referrer text,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now()
+  )`;
+
+await sql`ALTER TABLE responses ADD COLUMN IF NOT EXISTS session_id text`;
+await sql`ALTER TABLE responses ADD COLUMN IF NOT EXISTS updated_at timestamptz NOT NULL DEFAULT now()`;
+
+await sql`
+  CREATE TABLE IF NOT EXISTS form_views (
+    id text PRIMARY KEY,
+    form_id text NOT NULL REFERENCES forms(id) ON DELETE CASCADE,
+    referrer text,
     created_at timestamptz NOT NULL DEFAULT now()
   )`;
 

@@ -9,11 +9,14 @@ import {
   DEFAULT_THEME,
   FIELD_TYPES,
   TYPE_LABELS,
+  CHOICE_TYPES,
   type Choice,
   type FieldType,
   type FormField,
   type FormSchema,
   type FormTheme,
+  type LogicKind,
+  type LogicRule,
 } from "@/lib/form-types";
 
 type SaveState = "saved" | "dirty" | "saving" | "error";
@@ -23,7 +26,33 @@ const DEFAULT_TITLE_BY_TYPE: Record<FieldType, string> = {
   email: "What's your email?",
   number: "Pick a number",
   choice: "Pick one option",
+  checkbox: "Select all that apply",
+  dropdown: "Choose from a list",
   rating: "How would you rate this?",
+  textarea: "Tell us more…",
+  date: "What day works for you?",
+};
+
+const DEFAULT_PROPERTIES_BY_TYPE: Partial<Record<FieldType, FormField["properties"]>> = {
+  choice: {
+    choices: [
+      { id: "opt_1", label: "Option 1" },
+      { id: "opt_2", label: "Option 2" },
+    ],
+  },
+  dropdown: {
+    choices: [
+      { id: "opt_1", label: "Option 1" },
+      { id: "opt_2", label: "Option 2" },
+    ],
+  },
+  checkbox: {
+    choices: [
+      { id: "opt_1", label: "Option 1" },
+      { id: "opt_2", label: "Option 2" },
+    ],
+  },
+  rating: { ratingMax: 5 },
 };
 
 export interface BuilderForm {
@@ -45,7 +74,8 @@ export default function Builder({ form }: { form: BuilderForm }) {
   const [published, setPublished] = useState<FormSchema | null>(form.publishedSchema);
   const [selected, setSelected] = useState<string | null>(null); // field id | null = form settings
   const [saveState, setSaveState] = useState<SaveState>("saved");
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied] = useState<"" | "link" | "embed">("");
+  const [shareOpen, setShareOpen] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
 
@@ -94,17 +124,9 @@ export default function Builder({ form }: { form: BuilderForm }) {
       type,
       title: DEFAULT_TITLE_BY_TYPE[type],
       required: false,
-      properties:
-        type === "choice"
-          ? {
-              choices: [
-                { id: "opt_1", label: "Option 1" },
-                { id: "opt_2", label: "Option 2" },
-              ],
-            }
-          : type === "rating"
-            ? { ratingMax: 5 }
-            : undefined,
+      properties: DEFAULT_PROPERTIES_BY_TYPE[type]
+        ? JSON.parse(JSON.stringify(DEFAULT_PROPERTIES_BY_TYPE[type]))
+        : undefined,
     };
     setFields((fs) => [...fs, field]);
     setSelected(field.id);
@@ -173,9 +195,10 @@ export default function Builder({ form }: { form: BuilderForm }) {
 
   const copyShare = async () => {
     await navigator.clipboard.writeText(`${window.location.origin}/f/${form.id}`);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1600);
+    setCopied("link");
+    setTimeout(() => setCopied(""), 1600);
   };
+  void copyShare;
 
   const selectedField = fields.find((f) => f.id === selected) ?? null;
 
@@ -210,12 +233,46 @@ export default function Builder({ form }: { form: BuilderForm }) {
         </Link>
         {status === "published" && (
           <>
-            <button
-              onClick={() => void copyShare()}
-              className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold hover:bg-slate-100"
-            >
-              {copied ? "Link copied ✓" : "Copy link"}
-            </button>
+            <div className="relative">
+              <button
+                onClick={() => setShareOpen((o) => !o)}
+                className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold hover:bg-slate-100"
+              >
+                Share
+              </button>
+              {shareOpen && (
+                <div className="absolute right-0 top-9 z-40 w-56 space-y-1 rounded-xl border border-slate-200 bg-white p-2 shadow-xl">
+                  <button
+                    onClick={async () => {
+                      await navigator.clipboard.writeText(`${window.location.origin}/f/${form.id}`);
+                      setCopied("link");
+                      setTimeout(() => {
+                        setCopied("");
+                        setShareOpen(false);
+                      }, 1400);
+                    }}
+                    className="w-full rounded-lg px-3 py-2 text-left text-xs font-medium hover:bg-slate-100"
+                  >
+                    {copied === "link" ? "Link copied ✓" : "🔗 Copy form link"}
+                  </button>
+                  <button
+                    onClick={async () => {
+                      await navigator.clipboard.writeText(
+                        `<iframe\n  src="${window.location.origin}/f/${form.id}"\n  title="${form.title.replace(/"/g, "")}"\n  style="width:100%;height:720px;border:0;border-radius:12px"\n  loading="lazy"\n></iframe>`
+                      );
+                      setCopied("embed");
+                      setTimeout(() => {
+                        setCopied("");
+                        setShareOpen(false);
+                      }, 1400);
+                    }}
+                    className="w-full rounded-lg px-3 py-2 text-left text-xs font-medium hover:bg-slate-100"
+                  >
+                    {copied === "embed" ? "Embed code copied ✓" : "</> Copy embed code"}
+                  </button>
+                </div>
+              )}
+            </div>
             <Link
               href={`/forms/${form.id}/responses`}
               className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold hover:bg-slate-100"
@@ -331,6 +388,7 @@ export default function Builder({ form }: { form: BuilderForm }) {
             {selectedField ? (
               <FieldSettings
                 field={selectedField}
+                fields={fields}
                 onUpdate={updateField}
                 onUpdateProperties={updateProperties}
               />
@@ -375,10 +433,12 @@ function IconBtn({
 
 function FieldSettings({
   field,
+  fields,
   onUpdate,
   onUpdateProperties,
 }: {
   field: FormField;
+  fields: FormField[];
   onUpdate: (id: string, patch: Partial<FormField>) => void;
   onUpdateProperties: (id: string, patch: NonNullable<FormField["properties"]>) => void;
 }) {
@@ -408,7 +468,7 @@ function FieldSettings({
         />
       </label>
 
-      {(field.type === "text" || field.type === "email") && (
+      {(field.type === "text" || field.type === "email" || field.type === "number" || field.type === "textarea" || field.type === "dropdown") && (
         <label className="block">
           <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-400">
             Placeholder
@@ -464,9 +524,11 @@ function FieldSettings({
         </label>
       )}
 
-      {field.type === "choice" && (
+      {CHOICE_TYPES.includes(field.type) && (
         <div>
-          <span className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-400">Options</span>
+          <span className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-400">
+            {field.type === "checkbox" ? "Checkbox options" : "Options"}
+          </span>
           <div className="space-y-2">
             {(field.properties?.choices ?? []).map((c: Choice, i: number, arr: Choice[]) => (
               <div key={c.id || i} className="flex items-center gap-2">
@@ -510,6 +572,174 @@ function FieldSettings({
           </button>
         </div>
       )}
+
+      <LogicEditor field={field} fields={fields.filter((f) => f.id !== field.id)} onUpdate={onUpdate} />
+    </div>
+  );
+}
+
+const LOGIC_KIND_LABELS: { kind: LogicKind; label: string; needsValue: boolean }[] = [
+  { kind: "equals", label: "is equal to", needsValue: true },
+  { kind: "notEquals", label: "is not equal to", needsValue: true },
+  { kind: "contains", label: "contains", needsValue: true },
+  { kind: "gt", label: "is greater than", needsValue: true },
+  { kind: "lt", label: "is less than", needsValue: true },
+  { kind: "answered", label: "is answered", needsValue: false },
+  { kind: "notAnswered", label: "is not answered", needsValue: false },
+];
+
+function LogicEditor({
+  field,
+  fields,
+  onUpdate,
+}: {
+  field: FormField;
+  fields: FormField[];
+  onUpdate: (id: string, patch: Partial<FormField>) => void;
+}) {
+  const rules = field.logic ?? [];
+  const options = (field.properties?.choices ?? []).filter((c) => c.label.trim() !== "");
+  const select = (
+    value: string,
+    onChange: (e: React.ChangeEvent<HTMLSelectElement>) => void,
+    className: string,
+    children: React.ReactNode
+  ) => (
+    <select
+      value={value}
+      onChange={onChange}
+      className={`rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs focus:border-olive focus:outline-none ${className}`}
+    >
+      {children}
+    </select>
+  );
+
+  if (fields.length === 0 && rules.length === 0) return null;
+
+  return (
+    <div className="border-t border-slate-100 pt-4">
+      <span className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-400">
+        Logic rules <span className="font-normal normal-case text-slate-400">(first match wins)</span>
+      </span>
+      <div className="space-y-3">
+        {rules.map((rule, i) => {
+          const meta = LOGIC_KIND_LABELS.find((k) => k.kind === rule.kind) ?? LOGIC_KIND_LABELS[0];
+          return (
+            <div key={rule.id || i} className="rounded-xl border border-slate-200 bg-slate-50/60 p-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-[10px] font-bold text-slate-500">If answer</span>
+                {select(
+                  rule.kind,
+                  (e) => {
+                    const logic = rules.map((r, j) => (j === i ? { ...r, kind: e.target.value as LogicKind } : r));
+                    onUpdate(field.id, { logic });
+                  },
+                  "",
+                  LOGIC_KIND_LABELS.map((k) => (
+                    <option key={k.kind} value={k.kind}>
+                      {k.label}
+                    </option>
+                  ))
+                )}
+                {meta.needsValue &&
+                  (options.length > 0 && CHOICE_TYPES.includes(field.type) ? (
+                    select(
+                      rule.value ?? "",
+                      (e) => {
+                        const logic = rules.map((r, j) => (j === i ? { ...r, value: e.target.value } : r));
+                        onUpdate(field.id, { logic });
+                      },
+                      "max-w-36",
+                      <>
+                        <option value="">value…</option>
+                        {options.map((c) => (
+                          <option key={c.id} value={c.label}>
+                            {c.label}
+                          </option>
+                        ))}
+                      </>
+                    )
+                  ) : (
+                    <input
+                      className="w-28 rounded-lg border border-slate-200 px-2 py-1.5 text-xs focus:border-olive focus:outline-none"
+                      placeholder="value"
+                      value={rule.value ?? ""}
+                      inputMode={field.type === "number" || field.type === "rating" ? "decimal" : undefined}
+                      onChange={(e) => {
+                        const logic = rules.map((r, j) => (j === i ? { ...r, value: e.target.value } : r));
+                        onUpdate(field.id, { logic });
+                      }}
+                    />
+                  ))}
+              </div>
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <span className="text-[10px] font-bold text-slate-500">Then</span>
+                {select(
+                  rule.action,
+                  (e) => {
+                    const logic = rules.map((r, j) =>
+                      j === i ? { ...r, action: e.target.value as LogicRule["action"] } : r
+                    );
+                    onUpdate(field.id, { logic });
+                  },
+                  "",
+                  <>
+                    <option value="goto">jump to</option>
+                    <option value="complete">complete the form</option>
+                  </>
+                )}
+                {rule.action === "goto" &&
+                  select(
+                    rule.target ?? "",
+                    (e) => {
+                      const logic = rules.map((r, j) => (j === i ? { ...r, target: e.target.value || null } : r));
+                      onUpdate(field.id, { logic });
+                    },
+                    "max-w-44",
+                    <>
+                      <option value="">next question…</option>
+                      {fields.map((f, idx) => (
+                        <option key={f.id} value={f.id}>
+                          {idx + 1}. {f.title || TYPE_LABELS[f.type]}
+                        </option>
+                      ))}
+                    </>
+                  )}
+                <span className="flex-1" />
+                <button
+                  type="button"
+                  title="Delete rule"
+                  aria-label="Delete rule"
+                  className="rounded px-2 py-1 text-slate-400 hover:bg-red-50 hover:text-red-500"
+                  onClick={() => onUpdate(field.id, { logic: rules.filter((_, j) => j !== i) })}
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <button
+        type="button"
+        onClick={() =>
+          onUpdate(field.id, {
+            logic: [
+              ...rules,
+              {
+                id: "rule_" + nanoid(4),
+                kind: "equals",
+                value: "",
+                action: "goto",
+                target: null,
+              },
+            ],
+          })
+        }
+        className="mt-2 text-sm font-semibold text-everest hover:underline"
+      >
+        + Add logic rule
+      </button>
     </div>
   );
 }

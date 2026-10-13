@@ -1,6 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useId, useRef, useState } from "react";import type { FormField, FormSchema, FormTheme } from "@/lib/form-types";
+import { nanoid } from "nanoid";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { CHOICE_TYPES, type FormField, type FormSchema, type FormTheme } from "@/lib/form-types";
+import { evaluateRule } from "@/lib/validate";
 
 const FONT_STACK: Record<FormTheme["font"], string> = {
   sans: "ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
@@ -18,7 +21,30 @@ function isDark(hex: string): boolean {
   return 0.2126 * r + 0.7152 * g + 0.0722 * b < 120;
 }
 
-function fieldAnswerText(field: FormField, value: unknown): string {
+function isEmptyAnswer(v: unknown): boolean {
+  return (
+    v === undefined ||
+    v === null ||
+    (typeof v === "string" && v.trim() === "") ||
+    (Array.isArray(v) && v.length === 0)
+  );
+}
+
+/** Final payload: coerce number-ish answers, pass the rest through. */
+function collectAnswers(fields: FormField[], answers: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const f of fields) {
+    const v = answers[f.id];
+    if (isEmptyAnswer(v)) continue;
+    if (f.type === "number" || f.type === "rating") out[f.id] = Number(v);
+    else if (Array.isArray(v)) out[f.id] = v;
+    else out[f.id] = typeof v === "string" ? v.trim() : v;
+  }
+  return out;
+}
+
+function answerText(field: FormField, value: unknown): string {
+  if (Array.isArray(value)) return value.join(", ");
   return value === undefined || value === null ? "" : String(value);
 }
 
@@ -42,12 +68,13 @@ export default function FormRunner({
   const [submitting, setSubmitting] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const reactId = useId();
+  const sessionIdRef = useRef<string>("");
+  const submittedRef = useRef(false);
 
   const fields = schema.fields;
   const isQuestion = typeof stage === "number";
   const index = isQuestion ? (stage as number) : 0;
   const current: FormField | undefined = isQuestion ? fields[index] : undefined;
-  const onLastField = isQuestion && index === fields.length - 1;
 
   const showFieldError = useCallback((message: string) => {
     setError(message);
@@ -55,26 +82,120 @@ export default function FormRunner({
   }, []);
 
   const startForm = useCallback(() => {
-    setStage(hasWelcome ? 0 : 0);
+    setStage(0);
     setError(null);
   }, [hasWelcome]);
 
+  // Session id ties partial updates to the final submission
+  useEffect(() => {
+    if (isPreview || !formId) return;
+    try {
+      const key = `lf_sid_${formId}`;
+      const existing = window.sessionStorage.getItem(key);
+      if (!existing) {
+        const sid = nanoid(16);
+        window.sessionStorage.setItem(key, sid);
+      }
+    } catch {
+      /* storage unavailable — partials still post with a fresh id */
+    }
+  }, [formId, isPreview]);
+
+  /** Branching: follow the answered path; stop at the first empty field on it. */
+  const computeNextStage = useCallback(
+    (fromIndex: number, allAnswers: Record<string, unknown>): Stage => {
+      let idx = fromIndex;
+      let guard = 0;
+      while (guard++ < fields.length + 5) {
+        const field = fields[idx];
+        if (!field) return fields.length;
+        const answer = allAnswers[field.id];
+        let next: Stage = idx + 1;
+        for (const rule of field.logic ?? []) {
+          if (evaluateRule(rule, answer)) {
+            if (rule.action === "complete") return "done";
+            const t = rule.target ? fields.findIndex((f) => f.id === rule.target) : -1;
+            next = t === -1 || t === idx ? idx + 1 : t;
+            break;
+          }
+        }
+        if (typeof next !== "number") return next; // "done"
+        if (next >= fields.length) return fields.length; // path complete → submit
+        const target = fields[next];
+        if (target && isEmptyAnswer(allAnswers[target.id])) return next; // unanswered → ask it
+        idx = next;
+      }
+      return fields.length;
+    },
+    [fields]
+  );
+
+  // Persist partial answers (debounced) for analytics + abandonment
+  const partialTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (isPreview || !formId || submittedRef.current) return;
+    if (Object.keys(answers).length === 0) return;
+    if (partialTimer.current) clearTimeout(partialTimer.current);
+    partialTimer.current = setTimeout(() => {
+      let sid = "";
+      try {
+        sid = window.sessionStorage.getItem(`lf_sid_${formId}`) ?? nanoid(16);
+      } catch {
+        sid = nanoid(16);
+      }
+      void fetch(`/f/${formId}/partial`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ sessionId: sid, answers }),
+      }).catch(() => undefined);
+    }, 1200);
+    return () => {
+      if (partialTimer.current) clearTimeout(partialTimer.current);
+    };
+  }, [answers, formId, isPreview]);
+
   const submit = useCallback(
-    async (finalAnswers: Record<string, unknown>) => {
+    async (allAnswers: Record<string, unknown>) => {
+      // One last client-side pass over everything that was answered
+      const cleaned = collectAnswers(fields, allAnswers);
+      const firstErr = fields
+        .filter((f) => !isEmptyAnswer(allAnswers[f.id]))
+        .map((f) => ({ f, e: validateLocal(f, allAnswers[f.id]) }))
+        .find((x) => x.e !== null);
+      if (firstErr && firstErr.e) {
+        setSubmitting(false);
+        showFieldError(firstErr.e);
+        const i = fields.findIndex((f) => f.id === firstErr.f.id);
+        if (i !== -1 && i !== index) setStage(i);
+        return;
+      }
       if (!isPreview && formId) {
+        submittedRef.current = true;
         try {
+          let sid: string | undefined;
+          try {
+            sid = window.sessionStorage.getItem(`lf_sid_${formId}`) ?? undefined;
+          } catch {
+            sid = undefined;
+          }
           const res = await fetch(`/f/${formId}/submit`, {
             method: "POST",
             headers: { "content-type": "application/json" },
-            body: JSON.stringify({ answers: finalAnswers }),
+            body: JSON.stringify({
+              answers: cleaned,
+              visited: Object.keys(cleaned),
+              sessionId: sid,
+            }),
           });
           if (!res.ok) {
             const data = (await res.json().catch(() => ({}))) as { errors?: { message: string }[] };
+            submittedRef.current = false;
             setSubmitting(false);
             showFieldError(data.errors?.[0]?.message ?? "Something went wrong. Please try again.");
             return;
           }
         } catch {
+          submittedRef.current = false;
           setSubmitting(false);
           showFieldError("Network error. Please try again.");
           return;
@@ -83,7 +204,7 @@ export default function FormRunner({
       setSubmitting(false);
       setStage("done");
     },
-    [formId, isPreview, showFieldError]
+    [fields, isPreview, formId, showFieldError, index]
   );
 
   const goNext = useCallback(async () => {
@@ -91,7 +212,7 @@ export default function FormRunner({
       startForm();
       return;
     }
-    if (stage === "done" || !current) return;
+    if (stage === "done" || !current || submitting) return;
 
     const value = answers[current.id];
     const err = validateLocal(current, value);
@@ -101,30 +222,44 @@ export default function FormRunner({
     }
     setError(null);
 
-    if (!onLastField) {
-      setStage(index + 1);
-      return;
+    const next = computeNextStage(index, answers);
+    const finishing = next === "done" || (typeof next === "number" && next >= fields.length);
+    if (finishing) {
+      setSubmitting(true);
+      await submit(answers);
+    } else {
+      setStage(next as number);
     }
-    // Last field -> submit all
-    const cleaned: Record<string, unknown> = {};
-    for (const f of fields) {
-      const v = answers[f.id];
-      if (v === undefined || v === null || (typeof v === "string" && v.trim() === "")) continue;
-      cleaned[f.id] =
-        f.type === "number" || f.type === "rating" ? Number(v) : String(v).trim();
-    }
-    const firstErr = fields
-      .map((f) => validateLocal(f, answers[f.id]))
-      .find((e) => e !== null);
-    if (firstErr) {
-      showFieldError(firstErr);
-      const i = fields.findIndex((f) => validateLocal(f, answers[f.id]) !== null);
-      if (i !== -1 && i !== index) setStage(i);
-      return;
-    }
-    setSubmitting(true);
-    await submit(cleaned);
-  }, [stage, current, answers, fields, index, onLastField, startForm, showFieldError, submit]);
+  }, [stage, current, answers, fields.length, index, submitting, startForm, showFieldError, computeNextStage, submit]);
+
+  const pickChoice = useCallback(
+    (field: FormField, label: string) => {
+      const merged = { ...answers, [field.id]: label };
+      setAnswers(merged);
+      setError(null);
+      const next = computeNextStage(index, merged);
+      const finishing = next === "done" || (typeof next === "number" && next >= fields.length);
+      window.setTimeout(async () => {
+        if (finishing) {
+          setSubmitting(true);
+          await submit(merged);
+        } else {
+          setStage(next as number);
+        }
+      }, 120);
+    },
+    [answers, index, fields.length, computeNextStage, submit]
+  );
+
+  const pickCheckbox = useCallback(
+    (field: FormField, label: string, checked: boolean) => {
+      const existing = Array.isArray(answers[field.id]) ? (answers[field.id] as string[]) : [];
+      const nextList = checked ? [...existing, label] : existing.filter((l) => l !== label);
+      setAnswers({ ...answers, [field.id]: nextList });
+      if (error) setError(null);
+    },
+    [answers, error]
+  );
 
   const goToPrevious = useCallback(() => {
     if (submitting) return;
@@ -133,52 +268,33 @@ export default function FormRunner({
     else if (index === 0 && hasWelcome) setStage("welcome");
   }, [submitting, isQuestion, index, hasWelcome]);
 
-  const setAnswer = useCallback((fieldId: string, value: unknown) => {
-    setAnswers((a) => ({ ...a, [fieldId]: value }));
-  }, []);
-
-  useEffect(() => {
-    if (isQuestion) inputRef.current?.focus();
-  }, [stage, isQuestion]);
-
-  // Enter advances from anywhere except buttons (choice buttons handle Enter via
-  // native click themselves, avoiding double-advance).
+  // Enter advances from anywhere; Shift/Ctrl+Enter also advances long text.
   const goNextRef = useRef<() => void>(() => undefined);
   useEffect(() => {
-    goNextRef.current = () => goNext();
+    goNextRef.current = () => {
+      void goNext();
+    };
   }, [goNext]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key !== "Enter" || e.shiftKey) return;
+      if (e.key !== "Enter") return;
       const target = e.target as HTMLElement | null;
-      if (target && (target.tagName === "BUTTON" || target.tagName === "TEXTAREA")) return;
+      if (target?.tagName === "BUTTON") return; // native click handles buttons
+      if (target?.tagName === "TEXTAREA" && !(e.shiftKey || e.ctrlKey || e.metaKey)) {
+        return; // leave plain Enter for newlines in long text
+      }
       e.preventDefault();
       goNextRef.current();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  // auto-advance for choice/rating selection
-  const pickChoice = useCallback(
-    (field: FormField, label: string) => {
-      setAnswer(field.id, label);
-      setError(null);
-      if (!onLastField) {
-        window.setTimeout(() => setStage((s) => (typeof s === "number" ? s + 1 : s)), 120);
-      } else {
-        setStage(index); // stays; user presses Enter / clicks Submit
-        // auto-submit like typeform? keep explicit for the final question
-      }
-    },
-    [onLastField, index, setAnswer]
-  );
 
   const restart = () => {
     setAnswers({});
     setError(null);
+    submittedRef.current = false;
     setStage(hasWelcome ? "welcome" : 0);
   };
 
@@ -187,14 +303,14 @@ export default function FormRunner({
   const fgMuted = dark ? "#b9c7bd" : "#45644a";
   const fontFamily = FONT_STACK[theme.font];
 
+  const nextStage = isQuestion ? computeNextStage(index, answers) : null;
+  const finishing =
+    nextStage === "done" || (typeof nextStage === "number" && nextStage >= fields.length);
   const progress =
     stage === "welcome" ? 0 : stage === "done" ? 100 : fields.length ? ((index + 1) / fields.length) * 100 : 0;
 
   return (
-    <div
-      className="flex min-h-full flex-col"
-      style={{ backgroundColor: theme.background, color: fg, fontFamily }}
-    >
+    <div className="flex min-h-full flex-col" style={{ backgroundColor: theme.background, color: fg, fontFamily }}>
       {/* progress bar */}
       <div className="fixed inset-x-0 top-0 z-10 h-1">
         <div
@@ -206,11 +322,9 @@ export default function FormRunner({
       {stage === "welcome" ? (
         <WelcomeStage
           schema={schema}
-          fg={fg}
           fgMuted={fgMuted}
           accent={theme.color}
           onStart={startForm}
-          idPrefix={reactId}
         />
       ) : fields.length === 0 ? (
         <div className="flex flex-1 items-center justify-center p-8 text-center text-lg" style={{ color: fgMuted }}>
@@ -227,7 +341,7 @@ export default function FormRunner({
         />
       ) : (
         current && (
-          <main className="lf-slide flex w-full max-w-2xl flex-1 flex-col justify-start px-6 pt-[16vh] pb-32 mx-auto">
+          <main className="lf-slide mx-auto flex w-full max-w-2xl flex-1 flex-col justify-start px-6 pt-[16vh] pb-32">
             <div key={shakeKey} className={error ? "lf-shake" : undefined}>
               <div className="text-sm font-medium" style={{ color: theme.color }}>
                 {index + 1} →
@@ -235,28 +349,27 @@ export default function FormRunner({
               <label htmlFor={`${current.id}`} className="mt-2 block text-3xl font-semibold leading-snug">
                 {current.title}
                 {current.required && (
-                  <span aria-hidden="true" style={{ color: current.required ? theme.color : undefined }}>
+                  <span aria-hidden="true" style={{ color: theme.color }}>
                     *
                   </span>
                 )}
               </label>
 
-              {renderInput(
-                current,
-                {
-                  id: `${current.id}`,
-                  ref: inputRef,
-                  value: fieldAnswerText(current, answers[current.id]),
-                  accent: theme.color,
-                  textColor: fg,
-                  placeholder: current.placeholder ?? undefined,
-                  onChange: (v) => {
-                    setAnswer(current.id, v);
-                    if (error) setError(null);
-                  },
+              {renderInput(current, {
+                id: `${current.id}`,
+                inputRef,
+                value: answerText(current, answers[current.id]),
+                selected: answers[current.id],
+                accent: theme.color,
+                textColor: fg,
+                placeholder: current.placeholder ?? undefined,
+                onChange: (v) => {
+                  setAnswers((a) => ({ ...a, [current.id]: v }));
+                  if (error) setError(null);
                 },
-                pickChoice
-              )}
+                onPick: pickChoice,
+                onCheck: pickCheckbox,
+              })}
             </div>
 
             {error && (
@@ -288,8 +401,8 @@ export default function FormRunner({
               className="rounded-full px-8 py-3 text-sm font-semibold text-white shadow-md transition hover:brightness-110 disabled:opacity-60"
               style={{ backgroundColor: theme.color }}
             >
-              {submitting ? "Submitting…" : onLastField ? "Submit" : "OK"}
-              <span className="ml-2 hidden opacity-70 sm:inline">press enter ↵</span>
+              {submitting ? "Submitting…" : finishing ? "Submit" : "OK"}
+              <span className="ml-2 hidden opacity-70 sm:inline">{hintFor(current.type)}</span>
             </button>
           </div>
         </footer>
@@ -298,19 +411,231 @@ export default function FormRunner({
   );
 }
 
+function hintFor(type: FormField["type"]): string {
+  if (type === "textarea") return "shift+enter ↵";
+  if (type === "date") return "pick a date ↵";
+  return "press enter ↵";
+}
+
+/* ---------- field validation (client-side mirror of lib/validate) ---------- */
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+function choiceLabels(field: FormField): string[] {
+  return (field.properties?.choices ?? []).map((c) => c.label);
+}
+
+function validateLocal(field: FormField, value: unknown): string | null {
+  if (isEmptyAnswer(value)) {
+    return field.required ? "This question needs an answer" : null;
+  }
+  const labels = choiceLabels(field);
+  switch (field.type) {
+    case "email": {
+      const s = String(value).trim();
+      return EMAIL_RE.test(s) ? null : "Please enter a valid email address";
+    }
+    case "number": {
+      const n = Number(value);
+      if (!Number.isFinite(n)) return "Please enter a number";
+      const min = field.properties?.min;
+      const max = field.properties?.max;
+      if (min !== undefined && n < min) return `Value must be at least ${min}`;
+      if (max !== undefined && n > max) return `Value must be at most ${max}`;
+      return null;
+    }
+    case "rating": {
+      const n = Number(value);
+      const max = field.properties?.ratingMax ?? 5;
+      if (!Number.isInteger(n) || n < 1 || n > max) return `Please pick a rating between 1 and ${max}`;
+      return null;
+    }
+    case "date": {
+      return ISO_DATE_RE.test(String(value).trim()) ? null : "Please pick a valid date";
+    }
+    case "checkbox": {
+      const list = Array.isArray(value) ? value.map(String) : [String(value)];
+      return list.every((l) => labels.includes(l)) ? null : "One of the selected options is no longer available";
+    }
+    case "choice":
+    case "dropdown": {
+      return labels.includes(String(value).trim()) ? null : "Please pick one of the options";
+    }
+    default:
+      return null;
+  }
+}
+
+/* ---------- inputs per field type ---------- */
+
+interface InputProps {
+  id: string;
+  inputRef: React.RefObject<HTMLInputElement | null>;
+  value: string;
+  selected: unknown;
+  accent: string;
+  textColor: string;
+  placeholder?: string;
+  onChange: (value: string) => void;
+  onPick: (field: FormField, label: string) => void;
+  onCheck: (field: FormField, label: string, checked: boolean) => void;
+}
+
+function renderInput(field: FormField, props: InputProps) {
+  const { id, inputRef, value, selected, accent, textColor, placeholder, onChange, onPick, onCheck } = props;
+  const inputClass = "mt-6 w-full border-b-2 bg-transparent pb-2 text-xl outline-none focus:ring-0";
+  const inputStyle = { color: textColor, borderColor: value ? accent : `${accent}55` };
+
+  if (field.type === "text" || field.type === "email" || field.type === "number") {
+    return (
+      <input
+        id={id}
+        ref={inputRef}
+        data-first="1"
+        type={field.type === "email" ? "email" : "text"}
+        inputMode={field.type === "number" ? "decimal" : undefined}
+        className={inputClass}
+        style={inputStyle}
+        placeholder={placeholder}
+        value={value}
+        onChange={(e) =>
+          onChange(field.type === "number" ? e.target.value.replace(/[^\d.-]/g, "") : e.target.value)
+        }
+        autoComplete={field.type === "email" ? "email" : "off"}
+      />
+    );
+  }
+
+  if (field.type === "date") {
+    return (
+      <input
+        id={id}
+        type="date"
+        className={inputClass}
+        style={{ ...inputStyle, borderColor: value ? accent : `${accent}55` }}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+      />
+    );
+  }
+
+  if (field.type === "textarea") {
+    return (
+      <textarea
+        id={id}
+        rows={4}
+        className={`${inputClass} resize-none rounded-2xl border-2 px-4 py-3`}
+        style={{ color: textColor, borderColor: `${accent}55`, backgroundColor: `${accent}08` }}
+        placeholder={placeholder}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+      />
+    );
+  }
+
+  const choices = field.properties?.choices ?? [];
+
+  if (field.type === "dropdown") {
+    return (
+      <select
+        id={id}
+        value={value}
+        onChange={(e) => {
+          if (e.target.value) onPick(field, e.target.value);
+          else onChange("");
+        }}
+        className="mt-6 w-full rounded-xl border-2 bg-white/70 px-4 py-3 text-lg outline-none"
+        style={{ color: value ? textColor : `${textColor}99`, borderColor: `${accent}55` }}
+      >
+        <option value="" disabled>
+          {placeholder || "Select an option…"}
+        </option>
+        {choices.map((c) => (
+          <option key={c.id} value={c.label}>
+            {c.label}
+          </option>
+        ))}
+      </select>
+    );
+  }
+
+  if (field.type === "checkbox") {
+    const checkedList = Array.isArray(selected) ? (selected as string[]) : [];
+    return (
+      <div role="group" className="mt-6 flex flex-col gap-3">
+        {choices.map((c, i) => {
+          const active = checkedList.includes(c.label);
+          return (
+            <label
+              key={c.id || i}
+              className="flex w-full cursor-pointer items-center gap-3 rounded-xl border bg-white/60 px-4 py-3 text-left text-lg transition hover:brightness-95"
+              style={{
+                borderColor: active ? accent : `${accent}44`,
+                borderWidth: active ? "2px" : "1px",
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={active}
+                onChange={(e) => onCheck(field, c.label, e.target.checked)}
+                className="h-5 w-5 rounded accent-current"
+                style={{ accentColor: accent }}
+              />
+              {c.label}
+            </label>
+          );
+        })}
+      </div>
+    );
+  }
+
+  // choice (single-select, auto-advance)
+  return (
+    <div role="radiogroup" className="mt-6 flex flex-col gap-3">
+      {choices.map((c, i) => {
+        const active = selected === c.label;
+        return (
+          <button
+            key={c.id || i}
+            type="button"
+            onClick={() => onPick(field, c.label)}
+            className="flex w-full items-center gap-3 rounded-xl border bg-white/60 px-4 py-3 text-left text-lg transition hover:brightness-95 dark:bg-black/10"
+            style={{
+              borderColor: active ? accent : `${accent}44`,
+              borderWidth: active ? "2px" : "1px",
+              boxShadow: active ? `0 1px 6px ${accent}33` : undefined,
+            }}
+          >
+            <span
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border-2 text-xs font-bold uppercase"
+              style={{
+                borderColor: active ? accent : `${textColor}55`,
+                color: active ? "#fff" : textColor,
+                backgroundColor: active ? accent : "transparent",
+              }}
+            >
+              {String.fromCharCode(65 + i)}
+            </span>
+            {c.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+
 function WelcomeStage({
   schema,
-  fg,
   fgMuted,
   accent,
   onStart,
 }: {
   schema: FormSchema;
-  fg: string;
   fgMuted: string;
   accent: string;
   onStart: () => void;
-  idPrefix: string;
 }) {
   return (
     <main className="lf-fade mx-auto flex w-full max-w-2xl flex-1 flex-col justify-start px-6 pt-[20vh] pb-32">
@@ -371,157 +696,3 @@ function DoneStage({
     </main>
   );
 }
-
-/* ---------- field validation shared client-side ---------- */
-
-function validateLocal(field: FormField, value: unknown): string | null {
-  const empty = value === undefined || value === null || (typeof value === "string" && value.trim() === "");
-  if (empty) {
-    return field.required ? "This question needs an answer" : null;
-  }
-  switch (field.type) {
-    case "email": {
-      const s = String(value).trim();
-      return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s) ? null : "Please enter a valid email address";
-    }
-    case "number": {
-      const n = Number(value);
-      if (!Number.isFinite(n)) return "Please enter a number";
-      const min = field.properties?.min;
-      const max = field.properties?.max;
-      if (min !== undefined && n < min) return `Value must be at least ${min}`;
-      if (max !== undefined && n > max) return `Value must be at most ${max}`;
-      return null;
-    }
-    case "rating": {
-      const n = Number(value);
-      const max = field.properties?.ratingMax ?? 5;
-      if (!Number.isInteger(n) || n < 1 || n > max) return `Please pick a rating between 1 and ${max}`;
-      return null;
-    }
-    default:
-      return null;
-  }
-}
-
-/* ---------- inputs per field type ---------- */
-
-interface InputProps {
-  id: string;
-  ref?: React.Ref<HTMLInputElement>;
-  value: string;
-  accent: string;
-  textColor: string;
-  placeholder?: string;
-  onChange: (value: string) => void;
-}
-
-function renderInput(
-  field: FormField,
-  props: InputProps,
-  pickChoice: (field: FormField, label: string) => void
-) {
-  const { id, value, accent, textColor, placeholder, onChange } = props;
-  const inputClass =
-    "mt-6 w-full border-b-2 bg-transparent pb-2 text-xl outline-none focus:ring-0";
-  const style = {
-    color: textColor,
-    borderColor: value ? accent : `${accent}55`,
-  };
-
-  if (field.type === "text" || field.type === "email") {
-    return (
-      <input
-        id={id}
-        ref={props.ref}
-        type={field.type === "email" ? "email" : "text"}
-        className={inputClass}
-        style={style}
-        placeholder={placeholder}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        autoComplete={field.type === "email" ? "email" : "off"}
-      />
-    );
-  }
-
-  if (field.type === "number") {
-    return (
-      <input
-        id={id}
-        ref={props.ref}
-        type="text"
-        inputMode="decimal"
-        className={inputClass}
-        style={style}
-        placeholder={placeholder}
-        value={value}
-        onChange={(e) => onChange(e.target.value.replace(/[^\d.-]/g, ""))}
-      />
-    );
-  }
-
-  if (field.type === "rating") {
-    const max = field.properties?.ratingMax ?? 5;
-    const currentRating = Number(fieldAnswerText(field, value)) || 0;
-    return (
-      <div role="radiogroup" className="mt-6 flex flex-wrap gap-3">
-        {Array.from({ length: max }, (_, i) => i + 1).map((n) => (
-          <button
-            key={n}
-            type="button"
-            aria-label={`${n} of ${max}`}
-            onClick={() => pickChoice(field, String(n))}
-            className="flex h-12 w-12 items-center justify-center rounded-full border-2 text-lg font-semibold transition hover:brightness-110"
-            style={{
-              backgroundColor: currentRating === n ? accent : "transparent",
-              color: currentRating === n ? "#fff" : textColor,
-              borderColor: currentRating === n ? accent : `${textColor}44`,
-            }}
-          >
-            {n}
-          </button>
-        ))}
-      </div>
-    );
-  }
-
-  // choice
-  const choices = field.properties?.choices ?? [];
-  const selected = value;
-  return (
-    <div role="radiogroup" className="mt-6 flex flex-col gap-3">
-      {choices.map((c, i) => {
-        const active = selected === c.label;
-        return (
-          <button
-            key={c.id || i}
-            type="button"
-            onClick={() => pickChoice(field, c.label)}
-            className="flex w-full items-center gap-3 rounded-xl border bg-white/60 px-4 py-3 text-left text-lg transition hover:brightness-95 dark:bg-black/10"
-            style={{
-              borderColor: active ? accent : `${accent}44`,
-              borderWidth: active ? "2px" : "1px",
-              boxShadow: active ? `0 1px 6px ${accent}33` : undefined,
-            }}
-          >
-            <span
-              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border-2 text-xs font-bold uppercase"
-              style={{
-                borderColor: active ? accent : `${textColor}55`,
-                color: active ? "#fff" : textColor,
-                backgroundColor: active ? accent : "transparent",
-              }}
-            >
-              {String.fromCharCode(65 + i)}
-            </span>
-            {c.label}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
-/* re-export so preview pages can import one symbol */
-export { FONT_STACK };

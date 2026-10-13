@@ -1,4 +1,13 @@
-export type FieldType = "text" | "email" | "number" | "choice" | "rating";
+export type FieldType =
+  | "text"
+  | "email"
+  | "number"
+  | "choice"
+  | "rating"
+  | "checkbox"
+  | "dropdown"
+  | "textarea"
+  | "date";
 
 export interface Choice {
   id: string;
@@ -17,6 +26,8 @@ export interface FormField {
     min?: number;
     max?: number;
   };
+  /** Order-sensitive: first matching rule wins. */
+  logic?: LogicRule[];
 }
 
 export interface FormSchema {
@@ -60,7 +71,11 @@ export const FIELD_TYPES: { type: FieldType; label: string }[] = [
   { type: "email", label: "Email" },
   { type: "number", label: "Number" },
   { type: "choice", label: "Multiple choice" },
+  { type: "checkbox", label: "Checkboxes" },
+  { type: "dropdown", label: "Dropdown" },
   { type: "rating", label: "Rating" },
+  { type: "textarea", label: "Long text" },
+  { type: "date", label: "Date" },
 ];
 
 export const TYPE_LABELS: Record<FieldType, string> = {
@@ -68,8 +83,25 @@ export const TYPE_LABELS: Record<FieldType, string> = {
   email: "Email",
   number: "Number",
   choice: "Multiple choice",
+  checkbox: "Checkboxes",
+  dropdown: "Dropdown",
   rating: "Rating",
+  textarea: "Long text",
+  date: "Date",
 };
+
+export const CHOICE_TYPES: FieldType[] = ["choice", "dropdown", "checkbox"];
+
+export type LogicKind = "equals" | "notEquals" | "contains" | "answered" | "notAnswered" | "gt" | "lt";
+
+export interface LogicRule {
+  id: string;
+  kind: LogicKind;
+  value?: string;
+  /** "goto" jumps to target field; "complete" ends the form. */
+  action: "goto" | "complete";
+  target?: string | null;
+}
 
 export function emptyForm(): FormSchema {
   return {
@@ -82,7 +114,36 @@ export function emptyForm(): FormSchema {
 }
 
 export function isFieldType(v: unknown): v is FieldType {
-  return typeof v === "string" && ["text", "email", "number", "choice", "rating"].includes(v);
+  return (
+    typeof v === "string" &&
+    ["text", "email", "number", "choice", "rating", "checkbox", "dropdown", "textarea", "date"].includes(v)
+  );
+}
+
+const LOGIC_KINDS: LogicKind[] = [
+  "equals",
+  "notEquals",
+  "contains",
+  "answered",
+  "notAnswered",
+  "gt",
+  "lt",
+];
+
+function normalizeLogic(input: unknown): LogicRule[] | undefined {
+  if (!Array.isArray(input) || input.length === 0) return undefined;
+  const rules: LogicRule[] = input.slice(0, 10).map((r: unknown, i: number) => {
+    const raw = (r ?? {}) as Record<string, unknown>;
+    const kind = LOGIC_KINDS.includes(raw.kind as LogicKind) ? (raw.kind as LogicKind) : "answered";
+    return {
+      id: typeof raw.id === "string" && raw.id ? raw.id.slice(0, 40) : `rule_${i}`,
+      kind,
+      value: typeof raw.value === "string" ? raw.value.slice(0, 200) : undefined,
+      action: raw.action === "complete" ? "complete" : "goto",
+      target: typeof raw.target === "string" && raw.target ? raw.target.slice(0, 40) : null,
+    };
+  });
+  return rules;
 }
 
 /** Clamp an arbitrary parsed-JSON value into a valid FormSchema (used for API inputs). */
@@ -98,6 +159,7 @@ export function normalizeSchema(input: unknown): FormSchema {
       title: typeof f.title === "string" ? f.title.slice(0, 500) : "",
       required: f.required === true,
       placeholder: typeof f.placeholder === "string" ? f.placeholder.slice(0, 200) : undefined,
+      logic: normalizeLogic(f.logic),
       properties: {
         choices: Array.isArray(props.choices)
           ? props.choices.slice(0, 20).map((c: unknown, i: number) => {

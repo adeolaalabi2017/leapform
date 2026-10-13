@@ -21,7 +21,20 @@ export const responses = pgTable("responses", {
   /** Record<fieldId, value> */
   answers: jsonb("answers").$type<Record<string, unknown>>().notNull(),
   completed: boolean("completed").notNull().default(true),
+  /** Client-generated id that keeps partial updates in sync with the final submission. */
+  sessionId: text("session_id"),
   userAgent: text("user_agent"),
+  referrer: text("referrer"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+/** One row per public-form page load — the basis for completion-rate stats. */
+export const formViews = pgTable("form_views", {
+  id: text("id").primaryKey(),
+  formId: text("form_id")
+    .notNull()
+    .references(() => forms.id, { onDelete: "cascade" }),
   referrer: text("referrer"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
