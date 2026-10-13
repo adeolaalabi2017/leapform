@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { TEMPLATES } from "@/lib/templates";
+import { AppHeader } from "@/components/brand";
 import { UseTemplateButton } from "./TemplateGrid";
 
 export const metadata = { title: "Templates — Leapform" };
@@ -7,17 +8,11 @@ export const metadata = { title: "Templates — Leapform" };
 export default function TemplatesPage() {
   return (
     <div className="mx-auto max-w-6xl px-6 py-10">
-      <header className="mb-10">
-        <Link href="/" className="text-sm text-slate-500 hover:underline">
-          ← forms
-        </Link>
-        <h1 className="mt-1 text-2xl font-bold tracking-tight">
-          Template gallery
-        </h1>
-        <p className="mt-1 text-sm text-slate-500">
-          Start from a proven questionnaire. Every template is fully editable after you use it.
-        </p>
-      </header>
+      <AppHeader
+        backHref="/"
+        title="Template gallery"
+        subtitle="Start from a proven questionnaire. Every template is fully editable after you use it."
+      />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {TEMPLATES.map((t) => (

@@ -1,41 +1,57 @@
 import Link from "next/link";
-import { desc } from "drizzle-orm";
+import { desc, sql } from "drizzle-orm";
 import { db } from "@/db/db";
-import { forms } from "@/db/schema";
+import { forms, formViews, responses } from "@/db/schema";
+import { AppHeader } from "@/components/brand";
 import { NewFormButton, DeleteFormButton } from "./DashboardActions";
 
 export const dynamic = "force-dynamic";
 
 export default async function Dashboard() {
-  const rows = await db
-    .select({
-      id: forms.id,
-      title: forms.title,
-      status: forms.status,
-      updatedAt: forms.updatedAt,
-    })
-    .from(forms)
-    .orderBy(desc(forms.updatedAt));
+  const [rows, formAgg, respAgg, viewAgg] = await Promise.all([
+    db
+      .select({
+        id: forms.id,
+        title: forms.title,
+        status: forms.status,
+        updatedAt: forms.updatedAt,
+      })
+      .from(forms)
+      .orderBy(desc(forms.updatedAt)),
+    db.select({ c: sql<number>`count(*)::int` }).from(forms),
+    db.select({ c: sql<number>`count(*)::int` }).from(responses),
+    db.select({ c: sql<number>`count(*)::int` }).from(formViews),
+  ]);
+  const stats = {
+    forms: formAgg[0]?.c ?? 0,
+    responses: respAgg[0]?.c ?? 0,
+    views: viewAgg[0]?.c ?? 0,
+  };
 
   return (
     <div className="mx-auto max-w-5xl px-6 py-10">
-      <header className="mb-10 flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">
-            Leap<span className="text-everest">form</span>
-          </h1>
-          <p className="mt-1 text-sm text-slate-500">Conversational forms — one question at a time.</p>
+      <AppHeader
+        subtitle="Conversational forms — one question at a time."
+        actions={
+          <>
+            <Link
+              href="/templates"
+              className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-olive hover:text-everest"
+            >
+              Browse templates
+            </Link>
+            <NewFormButton />
+          </>
+        }
+      />
+
+      {stats.forms > 0 && (
+        <div className="mb-8 grid gap-4 sm:grid-cols-3">
+          <MiniStat label="Forms" value={stats.forms} />
+          <MiniStat label="Responses collected" value={stats.responses} />
+          <MiniStat label="Form views" value={stats.views} />
         </div>
-        <div className="flex items-center gap-3">
-          <Link
-            href="/templates"
-            className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-olive hover:text-everest"
-          >
-            Browse templates
-          </Link>
-          <NewFormButton />
-        </div>
-      </header>
+      )}
 
       {rows.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-slate-300 p-16 text-center">
@@ -81,10 +97,10 @@ export default async function Dashboard() {
                   Edit
                 </Link>
                 <Link
-                  href={`/forms/${form.id}/responses`}
+                  href={`/forms/${form.id}/analytics`}
                   className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold hover:bg-slate-100"
                 >
-                  Responses
+                  Analytics
                 </Link>
                 {form.status === "published" && (
                   <Link
@@ -101,6 +117,15 @@ export default async function Dashboard() {
           ))}
         </ul>
       )}
+    </div>
+  );
+}
+
+function MiniStat({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+      <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400">{label}</p>
+      <p className="mt-0.5 text-2xl font-bold text-everest">{value}</p>
     </div>
   );
 }

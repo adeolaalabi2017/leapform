@@ -17,6 +17,10 @@ React 19, Tailwind CSS v4, Drizzle ORM, and Neon serverless Postgres.
   progress bar, completion screen. Unpublished forms 404.
 - **Responses** (`/forms/[id]/responses`) — table view plus CSV export
   (`Download CSV`, also via `/api/forms/[id]/responses?format=csv`).
+- **Analytics** (`/forms/[id]/analytics`) — reporting dashboard: views →
+  responses funnel, 14-day submissions chart, per-question breakdowns
+  (choice distribution, rating histograms, NPS scoreboard, open-text quotes),
+  all rendered server-side without a chart library.
 
 Question types: short text, email, number, multiple choice, checkboxes, dropdown,
 rating (optionally 0-indexed for NPS-style scales), long text, date.
