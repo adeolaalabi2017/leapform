@@ -1,0 +1,52 @@
+@import "tailwindcss";
+
+@keyframes lf-slide {
+  from {
+    opacity: 0;
+    transform: translateY(26px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes lf-shake {
+  10%,
+  90% {
+    transform: translateX(-2px);
+  }
+  30%,
+  70% {
+    transform: translateX(4px);
+  }
+  50% {
+    transform: translateX(-4px);
+  }
+}
+
+@keyframes lf-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.lf-slide {
+  animation: lf-slide 0.28s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.lf-shake {
+  animation: lf-shake 0.4s both;
+}
+
+.lf-fade {
+  animation: lf-fade 0.4s ease both;
+}
+
+html,
+body {
+  height: 100%;
+}
