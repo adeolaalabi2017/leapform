@@ -448,7 +448,9 @@ function validateLocal(field: FormField, value: unknown): string | null {
     case "rating": {
       const n = Number(value);
       const max = field.properties?.ratingMax ?? 5;
-      if (!Number.isInteger(n) || n < 1 || n > max) return `Please pick a rating between 1 and ${max}`;
+      const start = field.properties?.ratingStart ?? 1;
+      if (!Number.isInteger(n) || n < start || n > max)
+        return `Please pick a rating between ${start} and ${max}`;
       return null;
     }
     case "date": {
@@ -538,10 +540,11 @@ function renderInput(field: FormField, props: InputProps) {
 
   if (field.type === "rating") {
     const max = field.properties?.ratingMax ?? 5;
+    const start = field.properties?.ratingStart ?? 1;
     const currentRating = Number(value) || 0;
     return (
       <div role="radiogroup" className="mt-6 flex flex-wrap gap-3">
-        {Array.from({ length: max }, (_, i) => i + 1).map((n) => (
+        {Array.from({ length: max - start + 1 }, (_, i) => i + start).map((n) => (
           <button
             key={n}
             type="button"

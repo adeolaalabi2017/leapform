@@ -82,8 +82,9 @@ export function validateField(field: FormField, raw: unknown): FieldError | null
     case "rating": {
       const n = Number(raw);
       const max = field.properties?.ratingMax ?? 5;
-      if (!Number.isInteger(n) || n < 1 || n > max) {
-        return { fieldId: field.id, message: `Please pick a rating between 1 and ${max}` };
+      const start = field.properties?.ratingStart ?? 1;
+      if (!Number.isInteger(n) || n < start || n > max) {
+        return { fieldId: field.id, message: `Please pick a rating between ${start} and ${max}` };
       }
       return null;
     }

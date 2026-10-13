@@ -3,7 +3,8 @@ import { NextResponse } from "next/server";
 import { desc } from "drizzle-orm";
 import { db } from "@/db/db";
 import { forms } from "@/db/schema";
-import { DEFAULT_THEME, emptyForm } from "@/lib/form-types";
+import { DEFAULT_THEME, emptyForm, normalizeSchema, normalizeTheme } from "@/lib/form-types";
+import { TEMPLATES } from "@/lib/templates";
 
 export async function GET() {
   const rows = await db
@@ -18,14 +19,29 @@ export async function GET() {
   return NextResponse.json({ forms: rows });
 }
 
-export async function POST() {
+export async function POST(req: Request) {
   const id = nanoid(12);
-  const schema = emptyForm();
+  let schema = emptyForm();
+  let theme = DEFAULT_THEME;
+  let title = schema.title;
+
+  // Optional: start from a template ({"templateId": "nps", ...})
+  const body = (await req.json().catch(() => ({}))) as { templateId?: unknown };
+  if (typeof body.templateId === "string" && body.templateId) {
+    const tpl = TEMPLATES.find((t) => t.id === body.templateId);
+    if (!tpl) {
+      return NextResponse.json({ error: "Unknown template" }, { status: 404 });
+    }
+    schema = normalizeSchema(tpl.schema);
+    theme = normalizeTheme(tpl.theme);
+    title = tpl.name;
+  }
+
   await db.insert(forms).values({
     id,
-    title: schema.title,
+    title,
     draftSchema: schema,
-    theme: DEFAULT_THEME,
+    theme,
   });
   return NextResponse.json({ id });
 }

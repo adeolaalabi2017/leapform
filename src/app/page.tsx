@@ -26,13 +26,27 @@ export default async function Dashboard() {
           </h1>
           <p className="mt-1 text-sm text-slate-500">Conversational forms — one question at a time.</p>
         </div>
-        <NewFormButton />
+        <div className="flex items-center gap-3">
+          <Link
+            href="/templates"
+            className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-olive hover:text-everest"
+          >
+            Browse templates
+          </Link>
+          <NewFormButton />
+        </div>
       </header>
 
       {rows.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-slate-300 p-16 text-center">
           <p className="text-lg font-semibold text-slate-700">No forms yet</p>
-          <p className="mt-1 text-sm text-slate-500">Create your first form to start collecting responses.</p>
+          <p className="mt-1 text-sm text-slate-500">
+            Create from scratch, or browse our{" "}
+            <Link href="/templates" className="font-medium text-everest underline decoration-sand decoration-2 underline-offset-2">
+              ready-made templates
+            </Link>{" "}
+            — from NPS to healthcare surveys.
+          </p>
         </div>
       ) : (
         <ul className="grid gap-4">

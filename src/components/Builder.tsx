@@ -506,22 +506,33 @@ function FieldSettings({
       )}
 
       {field.type === "rating" && (
-        <label className="block">
-          <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-400">
-            Rating scale
-          </span>
-          <select
-            className="rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-olive focus:outline-none"
-            value={field.properties?.ratingMax ?? 5}
-            onChange={(e) => onUpdateProperties(field.id, { ratingMax: Number(e.target.value) })}
-          >
-            {[3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
-              <option key={n} value={n}>
-                1 – {n}
-              </option>
-            ))}
-          </select>
-        </label>
+        <>
+          <label className="block">
+            <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-400">
+              Rating scale
+            </span>
+            <select
+              className="rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-olive focus:outline-none"
+              value={field.properties?.ratingMax ?? 5}
+              onChange={(e) => onUpdateProperties(field.id, { ratingMax: Number(e.target.value) })}
+            >
+              {[3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
+                <option key={n} value={n}>
+                  1 – {n}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="flex items-center gap-2 text-sm font-medium text-slate-600">
+            <input
+              type="checkbox"
+              checked={(field.properties?.ratingStart ?? 1) === 0}
+              onChange={(e) => onUpdateProperties(field.id, { ratingStart: e.target.checked ? 0 : 1 })}
+              className="h-4 w-4 rounded border-slate-300 accent-everest"
+            />
+            Start scale at 0 (NPS-style, 0–10)
+          </label>
+        </>
       )}
 
       {CHOICE_TYPES.includes(field.type) && (

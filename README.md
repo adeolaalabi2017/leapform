@@ -18,7 +18,16 @@ React 19, Tailwind CSS v4, Drizzle ORM, and Neon serverless Postgres.
 - **Responses** (`/forms/[id]/responses`) — table view plus CSV export
   (`Download CSV`, also via `/api/forms/[id]/responses?format=csv`).
 
-Question types: short text, email, number, multiple choice, rating.
+Question types: short text, email, number, multiple choice, checkboxes, dropdown,
+rating (optionally 0-indexed for NPS-style scales), long text, date.
+
+## Templates
+
+`/templates` ships 11 ready-made questionnaires — Net Promoter Score® (NPS),
+product user feedback, consumer purchase feedback, CSAT, employee satisfaction,
+event planning, nonprofit, education, market research, brand awareness, and
+healthcare. `POST /api/forms {"templateId": "..."}` instantiates any of them
+(see `src/lib/templates.ts`).
 
 ## Getting started
 

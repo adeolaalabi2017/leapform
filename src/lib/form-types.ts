@@ -23,6 +23,8 @@ export interface FormField {
   properties?: {
     choices?: Choice[];
     ratingMax?: number;
+    /** Rating scales can start at 1 (default) or 0 (NPS-style). */
+    ratingStart?: number;
     min?: number;
     max?: number;
   };
@@ -171,6 +173,7 @@ export function normalizeSchema(input: unknown): FormSchema {
             })
           : undefined,
         ratingMax: clampInt(props.ratingMax, 2, 10) ?? 5,
+        ratingStart: clampInt(props.ratingStart, 0, 1) ?? 1,
         min: props.min === undefined ? undefined : clampInt(props.min, -1e9, 1e9),
         max: props.max === undefined ? undefined : clampInt(props.max, -1e9, 1e9),
       },
