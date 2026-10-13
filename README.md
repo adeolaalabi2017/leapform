@@ -38,6 +38,13 @@ node scripts/db-setup.mjs   # creates forms + responses tables if missing
 npm run dev
 ```
 
+### Optional env vars
+
+- `RESEND_API_KEY` — Resend key with `sending_access` on the `prother.dev` domain; enables
+  per-submission email notifications when a form's notify-email is set.
+- `NOTIFY_FROM` — sender identity, defaults to `Leapform <forms@prother.dev>`.
+- `NEXT_PUBLIC_APP_URL` — canonical URL used in notification links.
+
 ## Structure
 
 ```
