@@ -40,12 +40,15 @@ export function LeapWordmark() {
  */
 export function AppHeader({
   backHref,
+  homeHref = "/",
   title,
   subtitle,
   actions,
 }: {
-  /** Where the logo links back to (defaults to the wordmark only). */
+  /** Where the "back" chip goes (e.g. the dashboard). */
   backHref?: string;
+  /** Where the logo itself links (defaults to the landing page). */
+  homeHref?: string;
   title?: React.ReactNode;
   subtitle?: React.ReactNode;
   actions?: React.ReactNode;
@@ -53,19 +56,17 @@ export function AppHeader({
   return (
     <header className="mb-9">
       <div className="flex items-center justify-between gap-4">
-        {backHref ? (
-          <Link href={backHref} className="flex items-center gap-2 transition hover:opacity-80">
-            <LeapMark size={26} />
-            <LeapWordmark />
-            <span className="text-slate-300">/</span>
-            <span className="text-sm font-medium text-slate-500">back</span>
-          </Link>
-        ) : (
-          <Link href="/" className="flex items-center gap-2 transition hover:opacity-80">
+        <div className="flex items-center gap-2">
+          <Link href={homeHref} className="flex items-center gap-2 transition hover:opacity-80">
             <LeapMark size={26} />
             <LeapWordmark />
           </Link>
-        )}
+          {backHref && (
+            <Link href={backHref} className="text-sm font-medium text-slate-500 transition hover:text-everest">
+              ← back
+            </Link>
+          )}
+        </div>
         {actions && <div className="flex items-center gap-2">{actions}</div>}
       </div>
       {title && <h1 className="mt-5 truncate text-2xl font-bold tracking-tight">{title}</h1>}

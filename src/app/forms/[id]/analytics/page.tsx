@@ -202,7 +202,7 @@ export default async function AnalyticsPage({ params }: { params: Promise<{ id: 
   return (
     <div className="mx-auto max-w-6xl px-6 py-10">
       <AppHeader
-        backHref="/"
+        backHref="/dashboard"
         title={form.title}
         subtitle={
           <span>

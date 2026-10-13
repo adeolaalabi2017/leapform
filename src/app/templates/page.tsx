@@ -9,7 +9,7 @@ export default function TemplatesPage() {
   return (
     <div className="mx-auto max-w-6xl px-6 py-10">
       <AppHeader
-        backHref="/"
+        backHref="/dashboard"
         title="Template gallery"
         subtitle="Start from a proven questionnaire. Every template is fully editable after you use it."
       />

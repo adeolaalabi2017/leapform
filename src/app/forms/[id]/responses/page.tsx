@@ -65,7 +65,7 @@ export default async function ResponsesPage({ params }: { params: Promise<{ id: 
   return (
     <div className="mx-auto max-w-6xl px-6 py-10">
       <AppHeader
-        backHref="/"
+        backHref="/dashboard"
         title={form.title}
         subtitle={
           <span className="flex flex-wrap items-center gap-2">

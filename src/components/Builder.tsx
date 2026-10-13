@@ -208,7 +208,7 @@ export default function Builder({ form }: { form: BuilderForm }) {
     <div className="flex h-screen flex-col bg-off-white">
       {/* top bar */}
       <header className="z-20 flex items-center gap-3 border-b border-slate-200 bg-white px-4 py-2.5 shadow-sm">
-        <Link href="/" className="flex items-center gap-1.5 rounded-md px-1 py-0.5 text-sm font-semibold text-everest hover:opacity-80">
+        <Link href="/dashboard" className="flex items-center gap-1.5 rounded-md px-1 py-0.5 text-sm font-semibold text-everest hover:opacity-80">
           <span className="text-slate-500 font-medium hover:underline">← forms</span>
         </Link>
         <input
