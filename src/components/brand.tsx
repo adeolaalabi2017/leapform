@@ -26,9 +26,9 @@ export function LeapMark({ size = 28 }: { size?: number }) {
   );
 }
 
-export function LeapWordmark() {
+export function LeapWordmark({ tone = "everest" }: { tone?: "everest" | "light" }) {
   return (
-    <span className="text-[15px] font-bold tracking-tight text-everest">
+    <span className={`text-[15px] font-bold tracking-tight ${tone === "light" ? "text-off-white" : "text-everest"}`}>
       Leap<span className="font-extrabold">form</span>
     </span>
   );

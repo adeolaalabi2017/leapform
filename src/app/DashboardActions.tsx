@@ -3,7 +3,13 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-export function NewFormButton() {
+export function NewFormButton({
+  variant = "solid",
+  label = "+ New form",
+}: {
+  variant?: "solid" | "sand";
+  label?: string;
+}) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
 
@@ -23,9 +29,13 @@ export function NewFormButton() {
     <button
       onClick={() => void create()}
       disabled={loading}
-      className="rounded-xl bg-everest px-5 py-2.5 text-sm font-semibold text-white shadow-md transition hover:bg-olive disabled:opacity-60"
+      className={`rounded-xl px-5 py-2.5 text-sm font-semibold shadow-md transition disabled:opacity-60 ${
+        variant === "sand"
+          ? "bg-sand text-everest hover:bg-off-white hover:shadow-lg"
+          : "bg-everest text-white hover:bg-olive"
+      }`}
     >
-      {loading ? "Creating…" : "+ New form"}
+      {loading ? "Creating…" : label}
     </button>
   );
 }
