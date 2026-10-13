@@ -1,5 +1,13 @@
 @import "tailwindcss";
 
+/* Deep Forest palette (Distract Studio, 2025) */
+@theme {
+  --color-everest: #18442a;   /* deep forest green — primary accent */
+  --color-olive: #45644a;     /* olive — secondary accent / hover */
+  --color-sand: #e4dbc4;      /* sand — tints, borders */
+  --color-off-white: #f3ede3; /* off white — light backgrounds */
+}
+
 @keyframes lf-slide {
   from {
     opacity: 0;

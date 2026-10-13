@@ -23,7 +23,7 @@ export function NewFormButton() {
     <button
       onClick={() => void create()}
       disabled={loading}
-      className="rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md transition hover:bg-indigo-500 disabled:opacity-60"
+      className="rounded-xl bg-everest px-5 py-2.5 text-sm font-semibold text-white shadow-md transition hover:bg-olive disabled:opacity-60"
     >
       {loading ? "Creating…" : "+ New form"}
     </button>

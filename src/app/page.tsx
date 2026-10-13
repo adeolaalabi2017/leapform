@@ -22,7 +22,7 @@ export default async function Dashboard() {
       <header className="mb-10 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">
-            Leap<span className="text-indigo-600">form</span>
+            Leap<span className="text-everest">form</span>
           </h1>
           <p className="mt-1 text-sm text-slate-500">Conversational forms — one question at a time.</p>
         </div>
@@ -39,7 +39,7 @@ export default async function Dashboard() {
           {rows.map((form) => (
             <li
               key={form.id}
-              className="group flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-indigo-300 hover:shadow-md"
+              className="group flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-olive hover:shadow-md"
             >
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">

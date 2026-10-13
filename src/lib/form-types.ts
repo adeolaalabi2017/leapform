@@ -36,26 +36,23 @@ export interface FormTheme {
 }
 
 export const DEFAULT_THEME: FormTheme = {
-  color: "#4f46e5",
+  color: "#18442a",
   font: "sans",
-  background: "#f7f7fb",
+  background: "#f3ede3",
 };
 
 export const ACCENT_PRESETS = [
-  { name: "Indigo", color: "#4f46e5" },
-  { name: "Emerald", color: "#059669" },
-  { name: "Rose", color: "#e11d48" },
-  { name: "Amber", color: "#d97706" },
-  { name: "Slate", color: "#334155" },
-  { name: "Sky", color: "#0284c7" },
+  { name: "Everest", color: "#18442a" },
+  { name: "Olive", color: "#45644a" },
+  { name: "Sand", color: "#e4dbc4" },
+  { name: "Off White", color: "#f3ede3" },
 ];
 
 export const BACKGROUND_PRESETS = [
-  { name: "Cloud", value: "#f7f7fb" },
-  { name: "Paper", value: "#faf6ef" },
-  { name: "Mist", value: "#eef6f6" },
-  { name: "Night", value: "#171923" },
-  { name: "White", value: "#ffffff" },
+  { name: "Off White", value: "#f3ede3" },
+  { name: "Sand", value: "#e4dbc4" },
+  { name: "Olive", value: "#45644a" },
+  { name: "Everest", value: "#18442a" },
 ];
 
 export const FIELD_TYPES: { type: FieldType; label: string }[] = [

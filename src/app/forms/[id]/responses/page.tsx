@@ -34,7 +34,7 @@ export default async function ResponsesPage({ params }: { params: Promise<{ id: 
         </div>
         <a
           href={`/api/forms/${id}/responses?format=csv`}
-          className="rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md transition hover:bg-indigo-500"
+          className="rounded-xl bg-everest px-5 py-2.5 text-sm font-semibold text-white shadow-md transition hover:bg-olive"
         >
           Download CSV
         </a>
@@ -53,7 +53,7 @@ export default async function ResponsesPage({ params }: { params: Promise<{ id: 
         <div className="overflow-x-auto rounded-2xl border border-slate-200 shadow-sm">
           <table className="min-w-full text-sm">
             <thead>
-              <tr className="border-b border-slate-200 bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
+              <tr className="border-b border-slate-200 bg-sand/40 text-left text-xs uppercase tracking-wide text-slate-500">
                 <th className="px-4 py-3 font-semibold">Submitted</th>
                 {schema.fields.map((f) => (
                   <th key={f.id} className="px-4 py-3 font-semibold">
@@ -66,7 +66,7 @@ export default async function ResponsesPage({ params }: { params: Promise<{ id: 
               {rows.map((r) => {
                 const answers = r.answers as Record<string, unknown>;
                 return (
-                  <tr key={r.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
+                  <tr key={r.id} className="border-b border-slate-100 last:border-0 hover:bg-sand/30">
                     <td className="whitespace-nowrap px-4 py-3 text-slate-500">
                       {new Date(r.createdAt).toLocaleString()}
                     </td>

@@ -183,8 +183,8 @@ export default function FormRunner({
   };
 
   const dark = isDark(theme.background);
-  const fg = dark ? "#f1f5f9" : "#1e293b";
-  const fgMuted = dark ? "#94a3b8" : "#64748b";
+  const fg = dark ? "#f3ede3" : "#18442a";
+  const fgMuted = dark ? "#b9c7bd" : "#45644a";
   const fontFamily = FONT_STACK[theme.font];
 
   const progress =

@@ -180,19 +180,19 @@ export default function Builder({ form }: { form: BuilderForm }) {
   const selectedField = fields.find((f) => f.id === selected) ?? null;
 
   return (
-    <div className="flex h-screen flex-col bg-slate-50">
+    <div className="flex h-screen flex-col bg-off-white">
       {/* top bar */}
       <header className="z-20 flex items-center gap-3 border-b border-slate-200 bg-white px-4 py-2.5 shadow-sm">
         <Link href="/" className="rounded-md px-2 py-1 text-sm font-medium text-slate-500 hover:bg-slate-100">
           ← forms
         </Link>
         <input
-          className="min-w-0 flex-1 rounded-md border border-transparent bg-transparent px-2 py-1 text-sm font-semibold hover:border-slate-200 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+          className="min-w-0 flex-1 rounded-md border border-transparent bg-transparent px-2 py-1 text-sm font-semibold hover:border-slate-200 focus:border-olive focus:outline-none focus:ring-2 focus:ring-sand"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="Form title"
         />
-        <span className="hidden self-center rounded-full bg-indigo-50 px-2.5 py-1 text-[11px] font-semibold text-indigo-600 sm:inline">
+        <span className="hidden self-center rounded-full bg-sand/50 px-2.5 py-1 text-[11px] font-semibold text-everest sm:inline">
           {status === "published" ? "● published" : "● draft"}
         </span>
         <span className="hidden items-center text-xs text-slate-400 sm:flex">
@@ -228,7 +228,7 @@ export default function Builder({ form }: { form: BuilderForm }) {
           onClick={() => void publish()}
           disabled={publishing || !dirty}
           title={dirty ? "Publish to everyone with the link" : "Live version is up to date"}
-          className="rounded-lg bg-indigo-600 px-4 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-40"
+          className="rounded-lg bg-everest px-4 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-olive disabled:cursor-not-allowed disabled:opacity-40"
         >
           {publishing ? "Publishing…" : status === "published" ? (dirty ? "Publish changes" : "Published ✓") : "Publish"}
         </button>
@@ -258,7 +258,7 @@ export default function Builder({ form }: { form: BuilderForm }) {
                   key={f.id}
                   className={`rounded-xl border p-2 transition ${
                     active
-                      ? "border-indigo-400 bg-indigo-50/60 shadow-sm"
+                      ? "border-olive bg-sand/60 shadow-sm"
                       : "border-slate-200 bg-white hover:border-slate-300"
                   }`}
                 >
@@ -305,7 +305,7 @@ export default function Builder({ form }: { form: BuilderForm }) {
           <div className="relative border-t border-slate-100 p-3">
             <button
               onClick={() => setAddOpen((o) => !o)}
-              className="w-full rounded-lg border border-dashed border-slate-300 py-2 text-sm font-semibold text-slate-600 hover:border-indigo-400 hover:text-indigo-600"
+              className="w-full rounded-lg border border-dashed border-slate-300 py-2 text-sm font-semibold text-slate-600 hover:border-olive hover:text-everest"
             >
               + Add question
             </button>
@@ -385,7 +385,7 @@ function FieldSettings({
   return (
     <div className="space-y-5 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
       <div className="flex items-center justify-between">
-        <span className="rounded bg-indigo-50 px-2 py-0.5 text-[11px] font-bold text-indigo-600">
+        <span className="rounded bg-sand/50 px-2 py-0.5 text-[11px] font-bold text-everest">
           {TYPE_LABELS[field.type]}
         </span>
         <label className="flex items-center gap-2 text-sm font-medium text-slate-600">
@@ -393,7 +393,7 @@ function FieldSettings({
             type="checkbox"
             checked={field.required}
             onChange={(e) => onUpdate(field.id, { required: e.target.checked })}
-            className="h-4 w-4 rounded border-slate-300 accent-indigo-600"
+            className="h-4 w-4 rounded border-slate-300 accent-everest"
           />
           Required
         </label>
@@ -402,7 +402,7 @@ function FieldSettings({
       <label className="block">
         <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-400">Title</span>
         <input
-          className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+          className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-olive focus:outline-none focus:ring-2 focus:ring-sand"
           value={field.title}
           onChange={(e) => onUpdate(field.id, { title: e.target.value })}
         />
@@ -414,7 +414,7 @@ function FieldSettings({
             Placeholder
           </span>
           <input
-            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none"
+            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-olive focus:outline-none"
             value={field.placeholder ?? ""}
             placeholder="Type here…"
             onChange={(e) => onUpdate(field.id, { placeholder: e.target.value })}
@@ -431,7 +431,7 @@ function FieldSettings({
               </span>
               <input
                 type="number"
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none"
+                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-olive focus:outline-none"
                 value={field.properties?.[k] ?? ""}
                 onChange={(e) =>
                   onUpdateProperties(field.id, {
@@ -451,7 +451,7 @@ function FieldSettings({
             Rating scale
           </span>
           <select
-            className="rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none"
+            className="rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-olive focus:outline-none"
             value={field.properties?.ratingMax ?? 5}
             onChange={(e) => onUpdateProperties(field.id, { ratingMax: Number(e.target.value) })}
           >
@@ -474,7 +474,7 @@ function FieldSettings({
                   {String.fromCharCode(65 + i)}
                 </span>
                 <input
-                  className="min-w-0 flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none"
+                  className="min-w-0 flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-olive focus:outline-none"
                   value={c.label}
                   onChange={(e) => {
                     const choices = arr.map((ch, j) => (j === i ? { ...ch, label: e.target.value } : ch));
@@ -504,7 +504,7 @@ function FieldSettings({
                 choices: [...arr, { id: "opt_" + nanoid(4), label: "" }],
               });
             }}
-            className="mt-2 text-sm font-semibold text-indigo-600 hover:underline"
+            className="mt-2 text-sm font-semibold text-everest hover:underline"
           >
             + Add option
           </button>
@@ -542,7 +542,7 @@ function FormSettings({
           Form title (shown on the welcome screen)
         </span>
         <input
-          className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none"
+          className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-olive focus:outline-none"
           value={title}
           onChange={(e) => onTitle(e.target.value)}
         />
@@ -553,7 +553,7 @@ function FormSettings({
           Welcome text (optional)
         </span>
         <textarea
-          className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none"
+          className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-olive focus:outline-none"
           rows={3}
           value={welcome ?? ""}
           placeholder="A short intro shown before the first question"
@@ -566,7 +566,7 @@ function FormSettings({
           Completion message (optional)
         </span>
         <textarea
-          className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none"
+          className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-olive focus:outline-none"
           rows={3}
           value={completion ?? ""}
           placeholder="Shown after a successful submission"
@@ -617,7 +617,7 @@ function FormSettings({
               onClick={() => setTheme({ ...theme, font: f })}
               className={`rounded-lg border px-4 py-2 text-sm transition ${
                 theme.font === f
-                  ? "border-indigo-500 bg-indigo-50 font-semibold text-indigo-600"
+                  ? "border-everest bg-sand/50 font-semibold text-everest"
                   : "border-slate-200 text-slate-600 hover:border-slate-400"
               }`}
               style={{
