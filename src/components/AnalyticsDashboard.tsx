@@ -13,7 +13,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { DistributionChart, NpsBoard, QuotesCard, RatingChart, StatCard } from "@/components/charts";
+import { DistributionChart, FunnelChart, NpsBoard, QuotesCard, RatingChart, StatCard } from "@/components/charts";
 
 type Range = "7" | "30" | "all";
 
@@ -107,10 +107,10 @@ export default function AnalyticsDashboard({ formId }: { formId: string }) {
             </button>
           ))}
         </div>
-        {data?.completionTimeMedianSec !== undefined && (
+        {data?.completionTimeMedianSec != null && (
           <span className="text-xs text-slate-500">
             typical time to complete:{" "}
-            <strong className="text-everest">{fmtDuration(data?.completionTimeMedianSec ?? null)}</strong>
+            <strong className="text-everest">{fmtDuration(data.completionTimeMedianSec)}</strong>
           </span>
         )}
       </div>
@@ -151,8 +151,21 @@ export default function AnalyticsDashboard({ formId }: { formId: string }) {
             </div>
           </section>
 
-          {/* timeline + dropoff */}
+          {/* funnel + timeline */}
           <section className="mb-8 grid gap-4 lg:grid-cols-5">
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm lg:col-span-2">
+              <p className="text-xs font-bold uppercase tracking-widest text-slate-400">Reach &amp; completion</p>
+              <div className="mt-4">
+                <FunnelChart
+                  steps={[
+                    { label: "Form views", count: data.totals.current.views },
+                    { label: "Started responding", count: data.totals.current.started },
+                    { label: "Completed", count: data.totals.current.completed },
+                  ]}
+                />
+              </div>
+            </div>
+
             <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm lg:col-span-3">
               <p className="text-xs font-bold uppercase tracking-widest text-slate-400">Submissions timeline</p>
               <div className="mt-4 h-64">
@@ -172,7 +185,10 @@ export default function AnalyticsDashboard({ formId }: { formId: string }) {
                 </ResponsiveContainer>
               </div>
             </div>
+          </section>
 
+          {/* dropoff + trends */}
+          <section className="mb-8 grid gap-4 lg:grid-cols-5">
             <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm lg:col-span-2">
               <p className="text-xs font-bold uppercase tracking-widest text-slate-400">Question drop-off</p>
               <p className="mt-1 text-[11px] text-slate-400">Where partial responders stopped going forward.</p>

@@ -3,7 +3,7 @@ import { desc, sql } from "drizzle-orm";
 import { db } from "@/db/db";
 import { forms, formViews, responses } from "@/db/schema";
 import { AppHeader } from "@/components/brand";
-import { NewFormButton, DeleteFormButton } from "../DashboardActions";
+import { NewFormButton, DeleteFormButton, ShareItem } from "../DashboardActions";
 
 export const dynamic = "force-dynamic";
 

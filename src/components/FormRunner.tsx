@@ -154,6 +154,21 @@ export default function FormRunner({
     };
   }, [answers, formId, isPreview]);
 
+  // Auto-resize for embedded iframes: tell the parent page our height whenever
+  // the rendered content can change (stage transitions, completion screen…).
+  useEffect(() => {
+    if (typeof window === "undefined" || window.self === window.parent) return;
+    const post = () => {
+      window.parent.postMessage(
+        { type: "leapform:resize", formId, height: document.documentElement.scrollHeight },
+        "*"
+      );
+    };
+    requestAnimationFrame(post);
+    window.addEventListener("resize", post);
+    return () => window.removeEventListener("resize", post);
+  }, [formId, stage, schema, theme, isPreview]);
+
   const submit = useCallback(
     async (allAnswers: Record<string, unknown>) => {
       // One last client-side pass over everything that was answered

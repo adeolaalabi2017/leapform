@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { ShareItem } from "@/app/DashboardActions";
 import { nanoid } from "nanoid";
 import {
   ACCENT_PRESETS,
@@ -76,7 +77,7 @@ export default function Builder({ form }: { form: BuilderForm }) {
   const [published, setPublished] = useState<FormSchema | null>(form.publishedSchema);
   const [selected, setSelected] = useState<string | null>(null); // field id | null = form settings
   const [saveState, setSaveState] = useState<SaveState>("saved");
-  const [copied, setCopied] = useState<"" | "link" | "embed">("");
+  const [copied, setCopied] = useState<"" | "link" | "embed" | "iframe">("");
   const [shareOpen, setShareOpen] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
@@ -243,35 +244,56 @@ export default function Builder({ form }: { form: BuilderForm }) {
                 Share
               </button>
               {shareOpen && (
-                <div className="absolute right-0 top-9 z-40 w-56 space-y-1 rounded-xl border border-slate-200 bg-white p-2 shadow-xl">
-                  <button
-                    onClick={async () => {
+                <div className="absolute right-0 top-9 z-40 w-64 space-y-1 rounded-xl border border-slate-200 bg-white p-2 shadow-xl">
+                  <ShareItem
+                    label="Copy form link"
+                    done="Link copied ✓"
+                    copied={copied}
+                    onCopy={async () => {
                       await navigator.clipboard.writeText(`${window.location.origin}/f/${form.id}`);
+                    }}
+                    onDone={() => {
                       setCopied("link");
                       setTimeout(() => {
                         setCopied("");
                         setShareOpen(false);
                       }, 1400);
                     }}
-                    className="w-full rounded-lg px-3 py-2 text-left text-xs font-medium hover:bg-slate-100"
-                  >
-                    {copied === "link" ? "Link copied ✓" : "🔗 Copy form link"}
-                  </button>
-                  <button
-                    onClick={async () => {
+                  />
+                  <ShareItem
+                    label="Copy embed · auto-resize"
+                    done="SDK snippet copied ✓"
+                    copied={copied}
+                    onCopy={async () => {
                       await navigator.clipboard.writeText(
-                        `<iframe\n  src="${window.location.origin}/f/${form.id}"\n  title="${form.title.replace(/"/g, "")}"\n  style="width:100%;height:720px;border:0;border-radius:12px"\n  loading="lazy"\n></iframe>`
+                        `<div data-leapform="${form.id}" data-height="650" data-title="${form.title.replace(/"/g, "")}"></div>\n<script async src="${window.location.origin}/embed.js"></script>`
                       );
+                    }}
+                    onDone={() => {
                       setCopied("embed");
                       setTimeout(() => {
                         setCopied("");
                         setShareOpen(false);
                       }, 1400);
                     }}
-                    className="w-full rounded-lg px-3 py-2 text-left text-xs font-medium hover:bg-slate-100"
-                  >
-                    {copied === "embed" ? "Embed code copied ✓" : "</> Copy embed code"}
-                  </button>
+                  />
+                  <ShareItem
+                    label="Copy embed · plain iframe"
+                    done="Embed copied ✓"
+                    copied={copied}
+                    onCopy={async () => {
+                      await navigator.clipboard.writeText(
+                        `<iframe\n  src="${window.location.origin}/f/${form.id}"\n  title="${form.title.replace(/"/g, "")}"\n  style="width:100%;height:720px;border:0;border-radius:12px"\n  loading="lazy"\n></iframe>`
+                      );
+                    }}
+                    onDone={() => {
+                      setCopied("iframe");
+                      setTimeout(() => {
+                        setCopied("");
+                        setShareOpen(false);
+                      }, 1400);
+                    }}
+                  />
                 </div>
               )}
             </div>
