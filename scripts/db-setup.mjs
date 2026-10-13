@@ -34,6 +34,7 @@ await sql`
 
 await sql`ALTER TABLE responses ADD COLUMN IF NOT EXISTS session_id text`;
 await sql`ALTER TABLE responses ADD COLUMN IF NOT EXISTS updated_at timestamptz NOT NULL DEFAULT now()`;
+await sql`ALTER TABLE forms ADD COLUMN IF NOT EXISTS notify_email text`;
 
 await sql`
   CREATE TABLE IF NOT EXISTS form_views (

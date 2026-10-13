@@ -19,6 +19,7 @@ export default async function BuilderPage({ params }: { params: Promise<{ id: st
     draftSchema: normalizeSchema(form.draftSchema),
     theme: normalizeTheme(form.theme),
     publishedSchema: form.publishedSchema ? normalizeSchema(form.publishedSchema) : null,
+    notifyEmail: form.notifyEmail,
   };
 
   return <Builder form={builderForm} />;

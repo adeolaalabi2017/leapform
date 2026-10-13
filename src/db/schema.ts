@@ -8,6 +8,8 @@ export const forms = pgTable("forms", {
   draftSchema: jsonb("draft_schema").$type<unknown>().notNull(),
   publishedSchema: jsonb("published_schema").$type<unknown>(),
   theme: jsonb("theme").$type<unknown>().notNull().default({}),
+  /** Optional destination that receives an email on every submission. */
+  notifyEmail: text("notify_email"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   publishedAt: timestamp("published_at", { withTimezone: true }),

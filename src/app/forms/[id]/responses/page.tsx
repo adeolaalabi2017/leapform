@@ -37,6 +37,29 @@ export default async function ResponsesPage({ params }: { params: Promise<{ id: 
   const startCount = completedCount + partialCount;
   const completionRate = viewCount > 0 ? Math.round((completedCount / viewCount) * 100) : null;
 
+  // NPS scoreboard: any required 0–10 rating field (started at 0) gets a breakdown.
+  const npsFields = schema.fields.filter(
+    (f) => f.type === "rating" && f.properties?.ratingStart === 0 && f.properties?.ratingMax === 10
+  );
+  const completedRows = rows.filter((r) => r.completed);
+  const nps = npsFields.map((f) => {
+    const scores = completedRows
+      .map((r) => Number((r.answers as Record<string, unknown>)?.[f.id]))
+      .filter((n) => Number.isInteger(n) && n >= 0 && n <= 10);
+    const promoters = scores.filter((n) => n >= 9).length;
+    const passives = scores.filter((n) => n >= 7 && n <= 8).length;
+    const detractors = scores.filter((n) => n < 7).length;
+    const total = scores.length || 1;
+    return {
+      title: f.title,
+      total: scores.length,
+      promoters: Math.round((promoters / total) * 100),
+      passives: Math.round((passives / total) * 100),
+      detractors: Math.round((detractors / total) * 100),
+      score: Math.round(((promoters - detractors) / total) * 100),
+    };
+  });
+
   return (
     <div className="mx-auto max-w-6xl px-6 py-10">
       <header className="mb-8 flex flex-wrap items-start justify-between gap-4">
@@ -65,6 +88,29 @@ export default async function ResponsesPage({ params }: { params: Promise<{ id: 
           Download CSV
         </a>
       </header>
+
+      {nps.length > 0 && (
+        <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {nps.map((n) => (
+            <div key={n.title} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <p className="text-xs font-bold uppercase tracking-widest text-slate-400">NPS score</p>
+              <p className="mt-1 text-3xl font-bold text-everest">{n.score}</p>
+              <p className="mt-1 truncate text-xs text-slate-500">{n.title}</p>
+              <div className="mt-3 flex h-2 overflow-hidden rounded-full">
+                <div className="bg-red-400" style={{ width: `${n.detractors}%` }} title="detractors" />
+                <div className="bg-amber-300" style={{ width: `${n.passives}%` }} title="passives" />
+                <div className="bg-everest" style={{ width: `${n.promoters}%` }} title="promoters" />
+              </div>
+              <div className="mt-2 flex justify-between text-[10px] font-medium text-slate-500">
+                <span>red detractors {n.detractors}%</span>
+                <span>passives {n.passives}%</span>
+                <span>promoters {n.promoters}%</span>
+              </div>
+              <p className="mt-1 text-[10px] text-slate-400">{n.total} scored response{n.total === 1 ? "" : "s"}</p>
+            </div>
+          ))}
+        </div>
+      )}
 
       {startCount === 0 ? (
         <div className="rounded-2xl border border-dashed border-slate-300 p-16 text-center">

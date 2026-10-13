@@ -4,6 +4,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db/db";
 import { forms, responses } from "@/db/schema";
 import { normalizeSchema, normalizeTheme } from "@/lib/form-types";
+import { isValidNotifyEmail } from "@/lib/email";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -22,15 +23,23 @@ export async function PUT(req: Request, { params }: Ctx) {
     title?: unknown;
     schema?: unknown;
     theme?: unknown;
+    notifyEmail?: unknown;
   };
   const schema = normalizeSchema(body.schema);
   const theme = normalizeTheme(body.theme);
   const title = typeof body.title === "string" && body.title.trim() ? body.title.trim().slice(0, 200) : schema.title;
   schema.title = title; // keep welcome-screen title in sync
+  let notifyEmail: string | null = null;
+  if (typeof body.notifyEmail === "string" && body.notifyEmail.trim() !== "") {
+    if (typeof body.notifyEmail === "string" && !isValidNotifyEmail(body.notifyEmail)) {
+      return NextResponse.json({ error: "Invalid notify email address" }, { status: 400 });
+    }
+    notifyEmail = body.notifyEmail.trim().toLowerCase();
+  }
   try {
     await db
       .update(forms)
-      .set({ title, draftSchema: schema, theme, updatedAt: new Date() })
+      .set({ title, draftSchema: schema, theme, notifyEmail, updatedAt: new Date() })
       .where(eq(forms.id, id));
   } catch {
     return NextResponse.json({ error: "Save failed" }, { status: 404 });

@@ -5,11 +5,15 @@ import { db } from "@/db/db";
 import { forms, responses } from "@/db/schema";
 import { normalizeSchema } from "@/lib/form-types";
 import { sanitizePartial } from "@/lib/validate";
+import { checkPublicRate } from "@/lib/rate-limit";
 
 type Ctx = { params: Promise<{ formId: string }> };
 
 /** Upsert an in-progress (partial) response. completed=false until final submit. */
 export async function POST(req: Request, { params }: Ctx) {
+  if (!checkPublicRate(req, "partial")) {
+    return NextResponse.json({ ok: false, error: "Too many requests" }, { status: 429 });
+  }
   const { formId } = await params;
   const [form] = await db.select().from(forms).where(eq(forms.id, formId));
   if (!form || form.status !== "published") {

@@ -62,10 +62,12 @@ export interface BuilderForm {
   draftSchema: FormSchema;
   theme: FormTheme;
   publishedSchema: FormSchema | null;
+  notifyEmail: string | null;
 }
 
 export default function Builder({ form }: { form: BuilderForm }) {
   const [title, setTitle] = useState(form.title);
+  const [notifyEmail, setNotifyEmail] = useState(form.notifyEmail ?? "");
   const [welcome, setWelcome] = useState<string | null>(form.draftSchema.welcome);
   const [completion, setCompletion] = useState<string | null>(form.draftSchema.completion);
   const [fields, setFields] = useState<FormField[]>(form.draftSchema.fields);
@@ -95,7 +97,7 @@ export default function Builder({ form }: { form: BuilderForm }) {
         const res = await fetch(`/api/forms/${form.id}`, {
           method: "PUT",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ title, schema, theme }),
+          body: JSON.stringify({ title, schema, theme, notifyEmail }),
         });
         setSaveState(res.ok ? "saved" : "error");
       } catch {
@@ -103,7 +105,7 @@ export default function Builder({ form }: { form: BuilderForm }) {
       }
     }, 700);
     return () => clearTimeout(t);
-  }, [title, welcome, completion, fields, theme, form.id]);
+  }, [title, welcome, completion, fields, theme, notifyEmail, form.id]);
 
   const updateField = useCallback((id: string, patch: Partial<FormField>) => {
     setFields((fs) => fs.map((f) => (f.id === id ? { ...f, ...patch } : f)));
@@ -177,7 +179,7 @@ export default function Builder({ form }: { form: BuilderForm }) {
       await fetch(`/api/forms/${form.id}`, {
         method: "PUT",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ title, schema, theme }),
+        body: JSON.stringify({ title, schema, theme, notifyEmail }),
       });
       const res = await fetch(`/api/forms/${form.id}/publish`, { method: "POST" });
       if (res.ok) {
@@ -393,7 +395,7 @@ export default function Builder({ form }: { form: BuilderForm }) {
                 onUpdateProperties={updateProperties}
               />
             ) : (
-              <FormSettings theme={theme} setTheme={setTheme} welcome={welcome} setWelcome={setWelcome} completion={completion} setCompletion={setCompletion} onTitle={setTitle} title={title} />
+              <FormSettings theme={theme} setTheme={setTheme} welcome={welcome} setWelcome={setWelcome} completion={completion} setCompletion={setCompletion} onTitle={setTitle} title={title} notifyEmail={notifyEmail} setNotifyEmail={setNotifyEmail} />
             )}
           </div>
         </section>
@@ -764,6 +766,8 @@ function FormSettings({
   setCompletion,
   title,
   onTitle,
+  notifyEmail,
+  setNotifyEmail,
 }: {
   theme: FormTheme;
   setTheme: (t: FormTheme) => void;
@@ -773,6 +777,8 @@ function FormSettings({
   setCompletion: (v: string | null) => void;
   title: string;
   onTitle: (v: string) => void;
+  notifyEmail: string;
+  setNotifyEmail: (v: string) => void;
 }) {
   return (
     <div className="space-y-5 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -813,6 +819,21 @@ function FormSettings({
           placeholder="Shown after a successful submission"
           onChange={(e) => setCompletion(e.target.value)}
         />
+      </label>
+
+      <label className="block">
+        <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-400">
+          Email me on every submission (optional)
+        </span>
+        <input
+          className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-olive focus:outline-none"
+          value={notifyEmail}
+          placeholder="you@prother.dev"
+          onChange={(e) => setNotifyEmail(e.target.value)}
+        />
+        <span className="mt-1 block text-[11px] text-slate-400">
+          Sent from forms@prother.dev right after someone submits this form.
+        </span>
       </label>
 
       <div>

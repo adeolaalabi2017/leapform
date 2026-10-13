@@ -5,10 +5,15 @@ import { db } from "@/db/db";
 import { forms, responses } from "@/db/schema";
 import { normalizeSchema } from "@/lib/form-types";
 import { validateSubmission } from "@/lib/validate";
+import { checkPublicRate } from "@/lib/rate-limit";
+import { isValidNotifyEmail, sendSubmissionNotification } from "@/lib/email";
 
 type Ctx = { params: Promise<{ formId: string }> };
 
 export async function POST(req: Request, { params }: Ctx) {
+  if (!checkPublicRate(req, "submit")) {
+    return NextResponse.json({ ok: false, error: "Too many requests" }, { status: 429 });
+  }
   const { formId } = await params;
   const [form] = await db.select().from(forms).where(eq(forms.id, formId));
 
@@ -47,6 +52,7 @@ export async function POST(req: Request, { params }: Ctx) {
           updatedAt: now,
         })
         .where(eq(responses.id, sessionId));
+      void notify();
       return NextResponse.json({ ok: true });
     }
     // existing.completed → this browser session already submitted once; store as a new response
@@ -66,5 +72,19 @@ export async function POST(req: Request, { params }: Ctx) {
     updatedAt: now,
   });
 
+  void notify();
+
   return NextResponse.json({ ok: true });
+
+  async function notify() {
+    if (!result.ok) return;
+    if (!isValidNotifyEmail(form.notifyEmail)) return;
+    await sendSubmissionNotification({
+      formId,
+      formTitle: schema.title,
+      notifyEmail: form.notifyEmail!.trim(),
+      schema,
+      answers: result.ok ? result.cleaned : {},
+    }).catch(() => undefined);
+  }
 }

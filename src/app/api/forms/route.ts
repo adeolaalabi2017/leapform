@@ -5,6 +5,7 @@ import { db } from "@/db/db";
 import { forms } from "@/db/schema";
 import { DEFAULT_THEME, emptyForm, normalizeSchema, normalizeTheme } from "@/lib/form-types";
 import { TEMPLATES } from "@/lib/templates";
+import { checkPublicRate } from "@/lib/rate-limit";
 
 export async function GET() {
   const rows = await db
@@ -20,6 +21,9 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
+  if (!checkPublicRate(req, "mutate")) {
+    return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+  }
   const id = nanoid(12);
   let schema = emptyForm();
   let theme = DEFAULT_THEME;
