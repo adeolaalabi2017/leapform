@@ -536,6 +536,31 @@ function renderInput(field: FormField, props: InputProps) {
 
   const choices = field.properties?.choices ?? [];
 
+  if (field.type === "rating") {
+    const max = field.properties?.ratingMax ?? 5;
+    const currentRating = Number(value) || 0;
+    return (
+      <div role="radiogroup" className="mt-6 flex flex-wrap gap-3">
+        {Array.from({ length: max }, (_, i) => i + 1).map((n) => (
+          <button
+            key={n}
+            type="button"
+            aria-label={`${n} of ${max}`}
+            onClick={() => onPick(field, String(n))}
+            className="flex h-12 w-12 items-center justify-center rounded-full border-2 text-lg font-semibold transition hover:brightness-110"
+            style={{
+              backgroundColor: currentRating === n ? accent : "transparent",
+              color: currentRating === n ? "#fff" : textColor,
+              borderColor: currentRating === n ? accent : `${textColor}44`,
+            }}
+          >
+            {n}
+          </button>
+        ))}
+      </div>
+    );
+  }
+
   if (field.type === "dropdown") {
     return (
       <select
